@@ -7,12 +7,14 @@ prepare:
 update:
 	conda env update --file environment.yml --prune
 
+PYTHON := $(shell conda run -n PROVIDENCE which python)
+
 run: build-thinker
-	python manage.py runserver
+	$(PYTHON) manage.py runserver
 
 migrate:
-	python manage.py makemigrations
-	python manage.py migrate
+	$(PYTHON) manage.py makemigrations
+	$(PYTHON) manage.py migrate
 
 KIEVAN_RUS_DIR := speech/context_manager/Kievan\ Rus
 
