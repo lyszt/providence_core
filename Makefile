@@ -1,5 +1,5 @@
 
-.PHONY: prepare update run migrate build-thinker
+.PHONY: prepare update run migrate build-thinker boot-test
 
 prepare:
 	conda env create -f environment.yml
@@ -9,8 +9,11 @@ update:
 
 PYTHON := $(shell conda run -n PROVIDENCE which python)
 
-run: build-thinker
+run: build-thinker boot-test
 	$(PYTHON) manage.py runserver
+
+boot-test:
+	$(PYTHON) manage.py test speech --verbosity=2
 
 migrate:
 	$(PYTHON) manage.py makemigrations
