@@ -2,6 +2,8 @@
 Executes a command by looking up its handler in the registry.
 """
 
+import json
+
 from .registry import REGISTRY
 
 
@@ -27,6 +29,10 @@ def run(command: str, arg: str) -> dict:
     else:
         keys = [k for k in result if k != "image"]  # skip base64 blob
         print(f"[Executor] {command!r} succeeded — result keys={keys}")
+        if "data" in result:
+            print(f"[Executor] {command!r} data={json.dumps(result['data'], ensure_ascii=False, indent=2)}")
+        elif "text" in result:
+            print(f"[Executor] {command!r} text={result['text']!r}")
 
     result["command"] = command
     return result
