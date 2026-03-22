@@ -17,7 +17,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from speech.gemini import agent as gemini_agent
-from .dispatcher import classify, CAPABILITIES_PROMPT
+from .dispatcher import classify
+from .registry import CAPABILITIES_PROMPT
 from .executor import run
 
 MAX_CHARS = 4080
