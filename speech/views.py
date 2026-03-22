@@ -30,6 +30,7 @@ def deep_think(request):
 
     light = bool(request.data.get('light', False))
     max_depth = 0 if light else 2
+    print(f"[deep_think] prompt={prompt!r} light={light} max_depth={max_depth}")
 
     manager = ThinkingManager(message=prompt, max_depth=max_depth)
     self_prompt = manager.generate_self_prompt()
@@ -42,13 +43,16 @@ def deep_think(request):
     needs_command = (
         root.context.get("needs_command", False) if root.context else False
     )
+    print(f"[deep_think] needs_command={needs_command}")
 
     command_block = ""
     if needs_command:
         decision = classify(prompt)
         cmd = decision.get("command", "None")
+        print(f"[deep_think] classifier → command={cmd!r} arg={decision.get('arg')!r}")
         if cmd and cmd != "None":
             result = run_command(cmd, decision.get("arg", ""))
+            print(f"[deep_think] command result keys={list(result.keys())}")
             if "error" not in result:
                 # Summarise the command result as text for the final prompt
                 if "data" in result:
@@ -91,6 +95,8 @@ def deep_think(request):
     instructions = (
         f"{CAPABILITIES_PROMPT}\n\n"
         "Answer directly. You are in a chat environment.\n"
+        "If you encounter any errors, failures, or missing data in your thought process "
+        "or command results, explicitly state them in your response so they can be diagnosed.\n"
         f"{self_prompt}{command_block}"
     )
 
@@ -99,32 +105,36 @@ def deep_think(request):
     except Exception as error:
         return Response({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    print(f"[deep_think] gemini response (first 120 chars)={response[:120]!r}")
+
     # Catch: if the final response is a bare command name, run the command,
     # then add a new ThinkingManager node with the result so the tree can
     # rethink and produce a proper answer.
     detected_cmd = response.strip().rstrip("()").strip()
+    print(f"[deep_think] detected_cmd={detected_cmd!r} is_command={detected_cmd in COMMAND_NAMES}")
     if detected_cmd in COMMAND_NAMES:
         decision = classify(prompt)
         cmd_arg = decision.get("arg", "") if decision.get("command") == detected_cmd else ""
         result = run_command(detected_cmd, cmd_arg)
 
-        if "error" in result:
-            return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        if "data" in result:
+        error_msg = result.get("error")
+        if error_msg:
+            print(f"[Command Error] {detected_cmd}: {error_msg}")
+            result_summary = f"The command '{detected_cmd}' could not be completed."
+        elif "data" in result:
             result_summary = json.dumps(result["data"], ensure_ascii=False, indent=2)
         elif "text" in result:
             result_summary = result["text"]
         else:
             result_summary = result.get("label", detected_cmd)
 
-        # New node: rethink with the command result as context
+        # New node: rethink with the result (or error) as context
         followup_node = ThinkingManager(
             message=prompt,
             previous=manager,
             summarized_thought=(
-                f"Command '{detected_cmd}' was executed. Result:\n{result_summary}\n"
-                "Now reason about how to answer the user using this result."
+                f"Command '{detected_cmd}' was attempted. Outcome:\n{result_summary}\n"
+                "Reason about how to answer the user given this outcome, including any errors."
             ),
             branch_label="Command-Result",
             max_depth=0,
@@ -134,6 +144,8 @@ def deep_think(request):
         final_instructions = (
             f"{CAPABILITIES_PROMPT}\n\n"
             "Answer directly. You are in a chat environment.\n"
+            f"The command '{detected_cmd}' has already been executed. "
+            "Do not output a command name — give a natural response based on the result.\n"
             f"{followup_prompt}"
         )
 
@@ -141,10 +153,19 @@ def deep_think(request):
             verbal = agent.generate_response("gemini-2.5-flash", final_instructions).text
             if len(verbal) > MAX_CHARS:
                 verbal = verbal[:MAX_CHARS - 12] + "\n\n[truncated]"
-            result["response"] = verbal
-        except Exception as error:
-            return Response({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as exc:
+            print(f"[Gemini Error] followup node: {exc}")
+            verbal = None
 
+        # If Gemini still output a command name or gave nothing, fall back to
+        # returning the thought tree so the user can see what happened.
+        if not verbal or verbal.strip().rstrip("()").strip() in COMMAND_NAMES:
+            verbal = followup_node.build_thought_tree_prompt()
+
+        if error_msg:
+            return Response({"response": verbal}, status=status.HTTP_200_OK)
+
+        result["response"] = verbal
         return Response(result, status=status.HTTP_200_OK)
 
     if len(response) > MAX_CHARS:
@@ -176,54 +197,6 @@ def simple_response(request):
         response = agent.generate_response("gemini-2.5-flash-lite", instructions).text
     except Exception as error:
         return Response({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # Catch: if the model responded with a bare command name, run it and
-    # feed the result back into a new Gemini node for a natural response.
-    detected_cmd = response.strip().rstrip("()").strip()
-    if detected_cmd in COMMAND_NAMES:
-        decision = classify(prompt)
-        cmd_arg = decision.get("arg", "") if decision.get("command") == detected_cmd else ""
-        result = run_command(detected_cmd, cmd_arg)
-
-        if "error" in result:
-            return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Image or structured data — return directly with a verbal commentary node
-        if "image" in result or "data" in result:
-            if "data" in result:
-                summary = json.dumps(result["data"], ensure_ascii=False, indent=2)
-            else:
-                summary = result.get("label", detected_cmd)
-
-            verbal_instructions = (
-                f"{CAPABILITIES_PROMPT}\n\n"
-                "Your name is Clairemont. You are the emperor's assistant.\n"
-                f"You just executed the command '{detected_cmd}'. Here is its result:\n"
-                f"{summary}\n"
-                "Provide a brief, natural verbal commentary. Do not repeat raw data."
-            )
-            try:
-                verbal = agent.generate_response("gemini-2.5-flash-lite", verbal_instructions).text
-                if len(verbal) > MAX_CHARS:
-                    verbal = verbal[:MAX_CHARS - 12] + "\n\n[truncated]"
-                result["response"] = verbal
-            except Exception:
-                result["response"] = None
-            return Response(result, status=status.HTTP_200_OK)
-
-        # Text result — weave it into a natural response
-        result_text = result.get("text", str(result))
-        follow_up = (
-            f"{CAPABILITIES_PROMPT}\n\n"
-            "Your name is Clairemont. You are the emperor's assistant.\n"
-            f"You just ran '{detected_cmd}' and the result is: {result_text}\n"
-            f"Original user prompt: {prompt}\n"
-            "Respond naturally, incorporating the result."
-        )
-        try:
-            response = agent.generate_response("gemini-2.5-flash-lite", follow_up).text
-        except Exception as error:
-            return Response({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if len(response) > MAX_CHARS:
         response = response[:MAX_CHARS - 12] + "\n\n[truncated]"

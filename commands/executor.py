@@ -12,7 +12,21 @@ def run(command: str, arg: str) -> dict:
     """
     entry = REGISTRY.get(command)
     if entry is None:
+        print(f"[Executor] Unknown command: {command!r}")
         return {"command": command, "error": f"Unknown command: {command}"}
-    result = entry["handler"](arg)
+
+    print(f"[Executor] Running {command!r} with arg={arg!r}")
+    try:
+        result = entry["handler"](arg)
+    except Exception as exc:
+        print(f"[Executor] {command!r} raised an exception: {exc}")
+        result = {"error": str(exc)}
+
+    if "error" in result:
+        print(f"[Executor] {command!r} failed: {result['error']}")
+    else:
+        keys = [k for k in result if k != "image"]  # skip base64 blob
+        print(f"[Executor] {command!r} succeeded — result keys={keys}")
+
     result["command"] = command
     return result
