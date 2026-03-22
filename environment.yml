@@ -16,4 +16,11 @@ dependencies:
   - google-genai
   - django
   - djangorestframework
+  - sympy
+  - pip:
+    - selenium
+    - undetected-chromedriver
+    - selenium-stealth
+    - beautifulsoup4
+    - fake-useragent
 prefix: /home/kaldwin/miniconda3/envs/providentia-network

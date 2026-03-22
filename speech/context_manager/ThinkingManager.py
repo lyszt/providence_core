@@ -239,12 +239,14 @@ class ThinkingManager:
         previous: Optional["ThinkingManager"] = None,
         summarized_thought: str = "",
         branch_label: str = "Primary",
+        max_depth: int = 2,
     ):
         self.next = []
         self.id = str(uuid.uuid4())
         self.graph_path: Optional[Path] = None
         self.branch_label = branch_label
         self.summary_text = summarized_thought
+        self.max_depth = max_depth
         self.probability_of_success: float = 0.0
         self.potential_increment: float = 0.0
         self.cumulative_potential: float = (
@@ -369,8 +371,8 @@ class ThinkingManager:
             # Count number of segments separated by hyphens
             branch_depth = len(label_to_check.split("-"))
 
-        if branch_depth >= 2:
-            self._log(f"Branch '{self.branch_label}' is at depth {branch_depth}; stopping expansion.")
+        if branch_depth >= self.max_depth:
+            self._log(f"Branch '{self.branch_label}' is at depth {branch_depth} (max {self.max_depth}); stopping expansion.")
             return
 
         branch_suffixes = ["A", "B"]
@@ -393,6 +395,7 @@ class ThinkingManager:
                 previous=self,
                 summarized_thought=branch_summary,
                 branch_label=child_label,
+                max_depth=self.max_depth,
             )
 
         self._branches_created = True
