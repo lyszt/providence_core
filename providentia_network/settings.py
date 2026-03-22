@@ -35,8 +35,11 @@ if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
 else:
     ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
-    if DEBUG:
-        ALLOWED_HOSTS.append("0.0.0.0")
+
+if DEBUG:
+    for _dev_host in ("127.0.0.1", "localhost", "0.0.0.0"):
+        if _dev_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_dev_host)
 
 
 # Application definition
