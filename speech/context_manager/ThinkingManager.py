@@ -564,10 +564,13 @@ class ThinkingManager:
             root = root.previous
         original_user_message = root.message
 
+        """
+        FOR TESTING
         graph_path = self._render_thought_graph()
         if graph_path is not None:
             self.graph_path = graph_path
             self._log(f"Graph path stored on manager: {graph_path}")
+        """
 
         return f"""
         [ ORIGINAL USER MESSAGE ]
