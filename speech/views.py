@@ -11,6 +11,7 @@ from rest_framework import status
 from commands.dispatcher import classify
 from commands.executor import run as run_command
 from commands.registry import CAPABILITIES_PROMPT, COMMAND_NAMES
+from authentication.utils import authorize
 
 MAX_CHARS = 4080
 
@@ -29,8 +30,8 @@ def deep_think(request):
         return Response({"error": "No prompt provided."}, status=status.HTTP_400_BAD_REQUEST)
 
     username = str(request.data.get('username', '')).strip()
-    if not username:
-        return Response({"error": "No username provided."}, status=status.HTTP_400_BAD_REQUEST)
+    if (err := authorize(username)):
+        return err
 
     light = bool(request.data.get('light', False))
     max_depth = 0 if light else 2
@@ -190,8 +191,8 @@ def simple_response(request):
         return Response({"error": "No prompt provided."}, status=status.HTTP_400_BAD_REQUEST)
 
     username = str(request.data.get('username', '')).strip()
-    if not username:
-        return Response({"error": "No username provided."}, status=status.HTTP_400_BAD_REQUEST)
+    if (err := authorize(username)):
+        return err
 
     agent = gemini_agent.GeminiAgent()
 

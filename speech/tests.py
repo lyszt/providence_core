@@ -114,6 +114,8 @@ class DatabaseTest(SimpleTestCase):
 class AnswerEndpointTest(SimpleTestCase):
     """Tests for POST /speech/answer/ — routing, validation, and one live call."""
 
+    databases = ("default",)
+
     def test_get_returns_405(self):
         response = self.client.get("/speech/answer/")
         self.assertEqual(response.status_code, 405)
@@ -138,7 +140,7 @@ class AnswerEndpointTest(SimpleTestCase):
     def test_valid_prompt_returns_response(self):
         response = self.client.post(
             "/speech/answer/",
-            data=json.dumps({"prompt": "Reply with only the word: pong"}),
+            data=json.dumps({"prompt": "Reply with only the word: pong", "username": "test:test"}),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200, response.content)
@@ -150,7 +152,7 @@ class AnswerEndpointTest(SimpleTestCase):
     def test_response_does_not_exceed_max_chars(self):
         response = self.client.post(
             "/speech/answer/",
-            data=json.dumps({"prompt": "Say hi in one sentence."}),
+            data=json.dumps({"prompt": "Say hi in one sentence.", "username": "test:test"}),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200, response.content)

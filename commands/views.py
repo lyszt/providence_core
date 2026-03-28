@@ -21,6 +21,7 @@ from .dispatcher import classify
 from .registry import CAPABILITIES_PROMPT
 from .executor import run
 from authentication.models import User
+from authentication.utils import authorize
 
 @api_view(["POST"])
 def dispatch(request):
@@ -116,13 +117,9 @@ def college(request):
     Takes an id and verifies if it is allowed to access my Sigaa information
     """
 
-    username: str = str(request.data.get("username")).strip()
-    user, created = User.objects.get_or_create(platform_id=username)
-    
-    if user.PermissionFlags.ADMIN not in user.permissions:
-       return Response(
-           {"error": "Este usuário não tem permissão para acessar essa funcionalidade."}, 
-           status=status.HTTP_401_UNAUTHORIZED)
+    username: str = str(request.data.get("username", "")).strip()
+    if (err := authorize(username, User.PermissionFlags.ADMIN)):
+        return err
     
     result = run("get_college_information", "")
     if "error" in result:

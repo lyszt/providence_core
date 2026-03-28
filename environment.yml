@@ -17,6 +17,7 @@ dependencies:
   - django
   - djangorestframework
   - sympy
+  - pip
   - pip:
     - selenium
     - undetected-chromedriver
