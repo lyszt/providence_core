@@ -13,7 +13,7 @@ namespace {
 void printUsage() {
     std::cout << "Usage: thinker --message <text> --output <file> "
                  "[--summary <text>] [--branch <label>] [--env <path>] "
-                 "[--model <model-name>] [--iteration <n>]\n";
+                 "[--model <model-name>] [--iteration <n>] [--username <name>]\n";
 }
 
 }  // namespace
@@ -35,6 +35,8 @@ Arguments parseArguments(int argc, char *argv[]) {
             args.envPath = argv[++i];
         } else if (current == "--model" && i + 1 < argc) {
             args.model = argv[++i];
+        } else if (current == "--username" && i + 1 < argc) {
+            args.username = argv[++i];
         } else if (current == "--iteration" && i + 1 < argc) {
             args.iteration = std::stoi(argv[++i]);
         } else if (current == "--help") {

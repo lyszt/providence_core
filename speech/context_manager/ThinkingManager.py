@@ -193,6 +193,7 @@ def _invoke_cpp_thinker(
     iteration: int,
     summarized_thought: str,
     branch_label: str,
+    username: str = "",
 ) -> Tuple[dict[str, Any], str]:
     binary_path = _ensure_cpp_binary()
     env_path = _locate_env_file()
@@ -215,6 +216,8 @@ def _invoke_cpp_thinker(
         command.extend(["--branch", branch_label])
     if env_path:
         command.extend(["--env", str(env_path)])
+    if username:
+        command.extend(["--username", username])
 
     try:
         subprocess.run(command, check=True, cwd=str(CPP_DIR))
@@ -240,6 +243,7 @@ class ThinkingManager:
         summarized_thought: str = "",
         branch_label: str = "Primary",
         max_depth: int = 2,
+        username: str = "",
     ):
         self.next = []
         self.id = str(uuid.uuid4())
@@ -258,6 +262,7 @@ class ThinkingManager:
             previous.next.append(self)
 
         self.message = message
+        self.username = username
         self.iteration = iteration + 1
         self.max_iterations = 8
 
@@ -267,6 +272,7 @@ class ThinkingManager:
                 iteration=self.iteration,
                 summarized_thought=summarized_thought,
                 branch_label=self.branch_label,
+                username=username,
             )
         except ThinkingProcessError as exc:
             print(f"Error running C++ thinking engine: {exc}")
@@ -396,6 +402,7 @@ class ThinkingManager:
                 summarized_thought=branch_summary,
                 branch_label=child_label,
                 max_depth=self.max_depth,
+                username=self.username,
             )
 
         self._branches_created = True

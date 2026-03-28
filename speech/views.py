@@ -28,11 +28,15 @@ def deep_think(request):
     if not prompt:
         return Response({"error": "No prompt provided."}, status=status.HTTP_400_BAD_REQUEST)
 
+    username = str(request.data.get('username', '')).strip()
+    if not username:
+        return Response({"error": "No username provided."}, status=status.HTTP_400_BAD_REQUEST)
+
     light = bool(request.data.get('light', False))
     max_depth = 0 if light else 2
-    print(f"[deep_think] prompt={prompt!r} light={light} max_depth={max_depth}")
+    print(f"[deep_think] prompt={prompt!r} username={username!r} light={light} max_depth={max_depth}")
 
-    manager = ThinkingManager(message=prompt, max_depth=max_depth)
+    manager = ThinkingManager(message=prompt, max_depth=max_depth, username=username)
     self_prompt = manager.generate_self_prompt()
 
     # Check if Kievan Rus flagged that a command is needed.
@@ -138,6 +142,7 @@ def deep_think(request):
             ),
             branch_label="Command-Result",
             max_depth=0,
+            username=username,
         )
         followup_prompt = followup_node.generate_self_prompt()
 
@@ -184,11 +189,16 @@ def simple_response(request):
     if not prompt:
         return Response({"error": "No prompt provided."}, status=status.HTTP_400_BAD_REQUEST)
 
+    username = str(request.data.get('username', '')).strip()
+    if not username:
+        return Response({"error": "No username provided."}, status=status.HTTP_400_BAD_REQUEST)
+
     agent = gemini_agent.GeminiAgent()
 
     instructions = (
         f"{CAPABILITIES_PROMPT}\n\n"
         "Your name is Clairemont. You are the emperor's assistant. Answer the user's prompt directly and concisely.\n"
+        f"User: {username}\n"
         f"User prompt: {prompt}\n"
         "Provide only the answer text, no extra metadata."
     )

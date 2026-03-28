@@ -20,9 +20,7 @@ from speech.gemini import agent as gemini_agent
 from .dispatcher import classify
 from .registry import CAPABILITIES_PROMPT
 from .executor import run
-
-MAX_CHARS = 4080
-
+from authentication.models import User
 
 @api_view(["POST"])
 def dispatch(request):
@@ -114,8 +112,18 @@ def math(request):
 def college(request):
     """
     Fetch university data from SIGAA.
-    No body required — credentials come from SIGAA_USER and SIGAA_PASS env vars.
+    Credentials come from SIGAA_USER and SIGAA_PASS env vars.
+    Takes an id and verifies if it is allowed to access my Sigaa information
     """
+
+    username: str = str(request.data.get("username")).strip()
+    user, created = User.objects.get_or_create(platform_id=username)
+    
+    if user.PermissionFlags.ADMIN not in user.permissions:
+       return Response(
+           {"error": "Este usuário não tem permissão para acessar essa funcionalidade."}, 
+           status=status.HTTP_401_UNAUTHORIZED)
+    
     result = run("get_college_information", "")
     if "error" in result:
         return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

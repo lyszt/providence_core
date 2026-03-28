@@ -14,6 +14,7 @@ struct Arguments {
     std::string outputPath;
     std::string envPath;
     std::string model = "gemini-2.5-flash-lite";
+    std::string username;
     int iteration = 0;
 };
 

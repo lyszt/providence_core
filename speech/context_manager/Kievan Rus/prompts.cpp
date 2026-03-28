@@ -59,6 +59,10 @@ std::string buildAnalysisPrompt(const Arguments &args) {
         oss << "[BRANCH LABEL]\nPrimary\n";
     }
     oss << "Focus all analysis on the branch identified in [BRANCH LABEL] while keeping sibling branches distinct.\n";
+    if (!args.username.empty()) {
+        oss << "[USER NAME]\n" << args.username << "\n"
+            << "Set the \"user_name\" field to the exact value above.\n";
+    }
     oss << "[USER MESSAGE]\n" << args.message << "\n"
         << "Ensure the response is valid JSON and nothing else.";
     return oss.str();
